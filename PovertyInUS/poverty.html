@@ -1,0 +1,300 @@
+<head>
+    <!--Plotly.js-->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+<div class="showcase__section" id="bubble">
+    <div class="spacer --small"></div>
+    <div id="bubbleplots">
+        <div class="bubbleplot" data-num="0">
+            <div class="dropdown">
+                State: <select class="statedata">
+            </select>
+            </div>
+            <div class="plot" id="div"></div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    Plotly.d3.csv('poverty.csv', function(err, rows){
+
+        // Takes in all of the rows from the data set and an attribute
+        // Returns a dictionary containing the information for each attribute
+        function unpack(rows, key) {
+            return rows.map(function(row) { return row[key]; });
+        }
+
+        // Sets initial variables
+        // Gets information for each of the attributes:
+        // state, poverty rate, net migration rate, county, death rate, and rate of higher education
+        var allStateNames = unpack(rows, 'state'),
+            allPoverty = unpack(rows, 'poverty'),
+            allMigration = unpack(rows, 'migration'),
+            allCounties = unpack(rows, 'county'),
+            allDeathRates = unpack(rows, 'death'),
+            allEducation = unpack(rows, 'education'),
+
+            // Adds an additional "All" entry to list of states so that it will be a dropdown option
+            // Initializes empty arrays for each data attribute
+            listofStates = ["All"],
+            poverty = [],
+            migration = [],
+            county = [],
+            deathRates = [],
+            education = [];
+
+        // Gets a list of the US states
+        for (var i = 0; i < allStateNames.length; i++ ){
+            // Makes sure not to add states that have already been added
+            if (listofStates.indexOf(allStateNames[i]) === -1 ){
+                listofStates.push(allStateNames[i]);
+            }
+        }
+
+        // Gets data for a particular state that was chosen by the user in the dropdown
+        function getStateData(chosenState) {
+            poverty = [];
+            migration = [];
+            county = [];
+            deathRates = [];
+            education = [];
+            for (var i = 0 ; i < allStateNames.length ; i++){
+                // Adds data for all of the states to the respective attribute arrays
+                if (chosenState === "All") {
+                    poverty.push(allPoverty[i]);
+                    migration.push(allMigration[i]);
+                    county.push(allCounties[i]);
+                    deathRates.push(allDeathRates[i]);
+                    education.push(allEducation[i]);
+                }
+                // Adds data associated with particular state to the respective attribute arrays
+                if ( allStateNames[i] === chosenState ) {
+                    poverty.push(allPoverty[i]);
+                    migration.push(allMigration[i]);
+                    county.push(allCounties[i]);
+                    deathRates.push(allDeathRates[i]);
+                    education.push(allEducation[i]);
+                }
+            }
+
+        }
+
+        // Sets the default selected state to be all states
+        setBubbleChart('All');
+
+        function setBubbleChart(chosenState) {
+
+            // Gets the data for the state that is selected from the dropdown
+            getStateData(chosenState);
+
+            // The following four traces are each a trace separating the counties by death rate
+            // The traces include information including filters for which data to include,
+            // the x and y axes, the colors of the circles, and the size of the circles
+
+            var trace1 = {
+                x: poverty,
+                y: migration,
+                mode: 'markers',
+                type: 'scatter',
+                text: county,
+                name: '0-5.9% Death Rate',
+                marker: {
+                    sizemode: 'area',
+                    size: education,
+                    sizeref: .05,
+                    color: 'rgb(254,232,200)'
+                },
+                transforms: [{
+                    type: 'filter',
+                    target: deathRates,
+                    operation: '>=',
+                    value: 0
+                },
+                {
+                    type: 'filter',
+                    target: deathRates,
+                    operation: '<',
+                    value: 6
+                },
+                {
+                    type: 'filter',
+                    target: migration,
+                    operation: '<',
+                    value: 60
+                },
+
+                {
+                    type: 'filter',
+                    target: migration,
+                    operation: '>',
+                    value: -60
+                }]
+            };
+
+            var trace2 = {
+                x: poverty,
+                y: migration,
+                mode: 'markers',
+                type: 'scatter',
+                text: county,
+                name: '6-9.9% Death rate',
+                marker: {
+                    sizemode: 'area',
+                    size: education,
+                    sizeref: .05,
+                    color: 'rgb(253,187,132)'
+                },
+                transforms: [{
+                    type: 'filter',
+                    target: deathRates,
+                    operation: '>=',
+                    value: 6
+                },
+                {
+                    type: 'filter',
+                    target: deathRates,
+                    operation: '<',
+                    value: 10
+                },
+                {
+                    type: 'filter',
+                    target: migration,
+                    operation: '<',
+                    value: 60
+                },
+
+                {
+                    type: 'filter',
+                    target: migration,
+                    operation: '>',
+                    value: -60
+                }]
+            };
+
+            var trace3 = {
+                x: poverty,
+                y: migration,
+                mode: 'markers',
+                type: 'scatter',
+                text: county,
+                name: '10-14.9% Death Rate',
+                marker: {
+                    sizemode: 'area',
+                    size: education,
+                    sizeref: .05,
+                    color: 'rgb(239,101,72)'
+                },
+                transforms: [{
+                    type: 'filter',
+                    target: deathRates,
+                    operation: '>=',
+                    value: 10
+                },
+                {
+                    type: 'filter',
+                    target: deathRates,
+                    operation: '<',
+                    value: 15
+                },
+                {
+                    type: 'filter',
+                    target: migration,
+                    operation: '<',
+                    value: 60
+                },
+
+                {
+                    type: 'filter',
+                    target: migration,
+                    operation: '>',
+                    value: -60
+                }]
+            };
+
+            var trace4 = {
+                x: poverty,
+                y: migration,
+                mode: 'markers',
+                type: 'scatter',
+                text: county,
+                name: '15-25.6% Death Rate',
+                marker: {
+                    sizemode: 'area',
+                    size: education,
+                    sizeref: .05,
+                    color: 'rgb(127,0,0)'
+                },
+                transforms: [{
+                    type: 'filter',
+                    target: deathRates,
+                    operation: '>=',
+                    value: 15
+                },
+                {
+                    type: 'filter',
+                    target: deathRates,
+                    operation: '<=',
+                    value: 25.6
+                },
+                {
+                    type: 'filter',
+                    target: migration,
+                    operation: '<',
+                    value: 60
+                },
+
+                {
+                    type: 'filter',
+                    target: migration,
+                    operation: '>',
+                    value: -60
+                }]
+
+            };
+
+            // Sets the data to contain information from each of the traces so that they're all plotted together
+            var data = [trace1, trace2, trace3, trace4];
+
+            // Sets the layout of the plot
+            var layout = {
+                title: 'Migration and Poverty by County in State: <br>'+ chosenState,
+                height: 900,
+                xaxis: {title: 'Poverty Rate', zeroline: true},
+                yaxis: {title: 'Net Migration', range: [-60, 60]},
+                hovermode: 'closest'
+            };
+
+            // Creates the bubble chart, passing in the traces and the layout information
+            // Resizes on different size window screens
+            Plotly.newPlot('div', data, layout, { responsive: true });
+        }
+
+        // Sets the chosen state from the dropdown
+        var innerContainer = document.querySelector('[data-num="0"'),
+            stateSelector = innerContainer.querySelector('.statedata');
+
+        // Function that populates the dropdown given an array of information
+        // Sets the selected option
+        function assignOptions(info, selector) {
+            for (var i = 0; i < info.length;  i++) {
+                var currentOption = document.createElement('option');
+                currentOption.text = info[i];
+                selector.appendChild(currentOption);
+            }
+        }
+
+        // Calls assignOptions to populate the dropdown with a list of states
+        assignOptions(listofStates, stateSelector);
+
+        // Callback function that updates the chart to the selected state
+        function updateState(){
+            setBubbleChart(stateSelector.value);
+        }
+
+        // Adds an event listener so that whenever the state selector changes, updateState is called
+        stateSelector.addEventListener('change', updateState, false);
+    });
+</script>
+</body>

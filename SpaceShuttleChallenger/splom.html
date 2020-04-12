@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+	svg {
+		font: 10px sans-serif;
+		padding: 10px;
+	}
+
+
+	.axis line {
+		stroke: #ddd;
+	}
+
+	.axis path {
+		fill: none;
+	}
+
+	.cell text {
+		font-weight: bold;
+		text-transform: capitalize;
+	}
+
+	.frame {
+		fill: none;
+		stroke: #aaa;
+	}
+
+    div.tooltip {
+        position: absolute;
+        text-align: center;
+        width: 100px;
+        height: 70px;
+        padding: 2px;
+        font: 12px sans-serif;
+        background: lightgray;
+        border: 0px;
+        border-radius: 8px;
+        pointer-events: none;
+    }
+
+</style>
+<body>
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script>
+
+    // Configure axes
+    var width = 960,
+        size = 200,
+        padding = 20;
+
+    var x = d3.scale.linear()
+        .range([padding / 2, size - padding / 2]);
+
+    var y = d3.scale.linear()
+        .range([size - padding / 2, padding / 2]);
+
+    var xAxis = d3.svg.axis()
+        .scale(x)
+        .orient("bottom")
+        .ticks(4);
+
+    var yAxis = d3.svg.axis()
+        .scale(y)
+        .orient("left")
+        .ticks(4)
+        .tickFormat(d3.format("3,.1s"));
+
+    // Set the diagonal labels
+    diagonalLabels = {flight_index: "Flight Index", num_o_ring_distress: "Number of O-Ring Distress",
+        launch_temp: "Temperature at Launch", leak_check_pressure: "Leak Check Pressure", tufte_metric: "Tufte Metric"
+    };
+
+
+    var div = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0);
+
+    d3.csv("challenger.csv", function(data) {
+
+        // Extract the first line of the csv file to get info for each column. We are excluding the
+        // flight_index in this visualization.
+        const domainByAttributes = {},
+            attributes = d3.keys(data[0])
+                .filter(function(d) { return d !== "flight_index"; });
+            n = attributes.length;
+
+        // Returns the minimum and maximum values for each table column, which will be used to scale axes
+        attributes.forEach(function(attribute) {
+
+            // Uses +d so that the scales go in ascending order from left to right
+            domainByAttributes[attribute] = d3.extent(data, function(d) { return +d[attribute]})
+        });
+
+        xAxis.tickSize(size * n);
+        yAxis.tickSize(-size * n);
+
+        var svg = d3.select("body").append("svg")
+            .attr("width", size * attributes.length + padding)
+            .attr("height", size * attributes.length + padding)
+            .append("g")
+            .attr("transform", "translate(" + padding + "," + padding / 2 + ")");
+
+        svg.selectAll(".x.axis")
+            .data(attributes)
+            .enter().append("g")
+            .attr("class", "x axis")
+            .attr("transform", function(d, i) { return "translate(" + (n - i - 1) * size + ",0)"; })
+            .each(function(d) { x.domain(domainByAttributes[d]); d3.select(this).call(xAxis); });
+
+        svg.selectAll(".y.axis")
+            .data(attributes)
+            .enter().append("g")
+            .attr("class", "y axis")
+            .attr("transform", function(d, i) { return "translate(0," + i * size + ")"; })
+            .each(function(d) { y.domain(domainByAttributes[d]); d3.select(this).call(yAxis); });
+
+        var cell = svg.selectAll(".cell")
+            .data(match(attributes, attributes))
+            .enter().append("g")
+            // .filter(function(d) {return (d.i !== d.j)})
+            .attr("class", "cell");
+
+        var plotCells = cell.filter(function(d) { return d.i !== d.j; })
+            .attr("transform", function(d) {return "translate(" + (n - d.i-1) * size + "," + d.j * size + ")"; })
+            .each(plot);
+
+        // Calls plotDiagonals, which creates blank boxes with diagonal labels
+        var diagonals = cell.filter(function(d) {  return d.i === d.j; })
+        .attr("transform", function(d) {return "translate(" + (n - d.i -1) * size + "," + d.j * size + ")";})
+            .each(plotDiagonals);
+
+        // Plot Scatterplots
+        function plot(p) {
+            var cell = d3.select(this);
+
+            x.domain(domainByAttributes[p.x]);
+            y.domain(domainByAttributes[p.y]);
+
+            cell.append("rect")
+                .attr("class", "frame")
+                .attr("x", padding / 2)
+                .attr("y", padding / 2)
+                .attr("width", size - padding)
+                .attr("height", size - padding);
+
+            var originalColor = "teal";
+            var originalOpacity = .3;
+
+            var hoverColor = "gold";
+
+            var circlesActivated = {};
+            attributes.forEach(function(d,i){ return circlesActivated[data[i]["flight_index"]] = false;});
+
+            var active = false;
+            cell.selectAll("circle")
+                .data(data)
+                .enter().append("circle").attr("class", function(d,i) { return "circle" + data[i]["flight_index"] + ""; })
+                .attr("cx", function(d) { return x(d[p.x]); })
+                .attr("cy", function(d) { return y(d[p.y]); })
+                .attr("r", 4)
+                .style("fill", originalColor)
+                .style("opacity", originalOpacity)
+                .on("mouseover", function(d,i) {
+                    d3.selectAll(`.circle${data[i]["flight_index"]}`)
+                        // .transition()
+                        .style('fill',hoverColor)
+                        .style("r", 7)
+                        .style("opacity", 1);
+
+                    div.transition();
+                    div.html("Tufte Metric: " + data[i]["tufte_metric"] + " Ring Distress: " + data[i]["num_o_ring_distress"]
+                        + " Launch Temp: " + data[i]["launch_temp"] + " Leak Pressure: " + data[i]["leak_check_pressure"] + "")
+                        .style("left", (d3.event.pageX) + "px")
+                        .style("top", (d3.event.pageY) + "px")
+                        .style("opacity", .4);
+
+                })
+                .on("mouseout", function(d,i) {
+                    d3.selectAll(`.circle${data[i]["flight_index"]}`)
+                        .style('fill', function () { if (!d.active) {return originalColor} else {return "hotpink"}})
+                        .style("opacity", function () { if (!d.active) {return originalOpacity} else {return 1}})
+                        .style("r", 4);
+                    div.transition()
+                        .duration(1)
+                        .style("opacity", 0);
+
+                })
+            .on('click', function(d, i) {
+                // Checks if the elements have been clicked and sets them to active
+                active = !d.active;
+                    // If the elements (circles) are active, then set color accordingly
+                    newOpacity = d.active ? originalOpacity : 1;
+                    newColor = d.active ? originalColor: "hotpink";
+                // Toggle circle color change
+                d3.selectAll(`.circle${data[i]["flight_index"]}`)
+                    .style("opacity", newOpacity)
+                    .style("fill", newColor)
+                    .style("r", 4);
+                // Update the elements' active state
+                d.active = active;
+            })
+
+            }
+
+        // Creates empty rectangles with the labels for the axes
+        function plotDiagonals() {
+            var cell = d3.select(this);
+
+            cell.append("rect")
+                .attr("x", padding / 2)
+                .attr("y", padding / 2)
+                .attr("width", size - padding)
+                .attr("height", size - padding)
+                .attr("fill", "white")
+                .attr("stroke", "#aaa");
+
+            cell.append("text")
+                .attr("x", (size-padding)/2)
+                .attr("y", (size - padding)/2)
+                .attr("dy", ".71em")
+                .attr("text-anchor", "middle")
+                .text(function(d) { return diagonalLabels[d.x]})
+        }
+    });
+
+
+    // Matches the attributes with each other
+    function match(a, b) {
+        var c = [], n = 4, m = 4, i, j;
+        for (i = -1; ++i < n;)
+            for (j = -1; ++j < m;)
+                c.push({x: a[i], i: i, y: b[j], j: j});
+        return c;
+    }
+
+
+</script>

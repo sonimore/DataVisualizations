@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+    svg {
+        font-size: 10px;
+    }
+    .axis line,
+    .axis path {
+        fill: none;
+        stroke: darkgray;
+    }
+
+    .lines path {
+        fill: none;
+        stroke: teal;
+        opacity: .3;
+        stroke-width: 2;
+    }
+    div.tooltip {
+        position: absolute;
+        text-align: center;
+        width: 100px;
+        height: 70px;
+        padding: 2px;
+        font: 12px sans-serif;
+        background: lightgray;
+        border: 0px;
+        border-radius: 8px;
+        pointer-events: none;
+    }
+
+</style>
+<body>
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script>
+
+   var margin = {top: 30, right: 5, bottom: 10, left: 5},
+       width = 900 - margin.left - margin.right,
+       height = 500 - margin.top - margin.bottom;
+   var div = d3.select("body").append("div")
+       .attr("class", "tooltip")
+       .style("opacity", 0);
+
+    // These will be used to scale our axes
+    var x = d3.scale.ordinal().rangePoints([0, width], 1);
+    var y = {};
+    var axis = d3.svg.axis().orient("left");
+
+    var line = d3.svg.line();
+    var labelNames = {flight_index: "Flight Index", num_o_ring_distress: "Number of O-Ring Distress",
+       launch_temp: "Temperature at Launch", leak_check_pressure: "Leak Check Pressure", tufte_metric: "Tufte Metric"
+   };
+
+    var svg = d3.select("body").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    d3.csv("challenger.csv", function(data) {
+        // Extract the list of attributes and create a scale for each.
+        x.domain(attributes = d3.keys(data[0]).filter(function(d) {
+            return (y[d] = d3.scale.linear()
+                .domain(d3.extent(data, function(p) { return +p[d]; }))
+                .range([height, 0]));
+        }));
+
+        var active = false;
+
+        // Add paths connecting the data points
+        lines = svg.append("g")
+            .attr("class", "lines")
+            .selectAll("path")
+            .data(data)
+            .enter().append("path")
+            .attr("d", path)
+        .on("mouseover", function(d, i){
+            d3.select(this)
+                .style("stroke", "gold")
+                .style("stroke-width", 3)
+                .style("opacity", 1);
+            div.transition();
+            div.html("Flight Index: " + data[i]["flight_index"] + " Ring Distress: " + data[i]["num_o_ring_distress"]
+                + " Launch Temp: " + data[i]["launch_temp"] + " Leak Pressure: " + data[i]["leak_check_pressure"] + " Tufte Metric: " + data[i]["tufte_metric"] + "")
+                .style("left", (d3.event.pageX) + "px")
+                .style("top", (d3.event.pageY) + "px")
+                .style("opacity", .4);
+        })
+            .on("mouseout", function(d){
+                d3.select(this).transition().duration(100)
+                    .style("stroke",function () { if (!d.active) {return "teal"} else {return "hotpink"}})
+                    .style("stroke-width", 2)
+                    .style("opacity", function () { if (!d.active) {return .3} else {return .7}});
+                div.transition()
+                    .duration(1)
+                    .style("opacity", 0);
+            })
+        .on('click', function(d, i) {
+            // Checks if the elements have been clicked and sets them to active
+            var active = !d.active;
+
+            // If the elements (circles) are active, then set color accordingly
+            var newOpacity = d.active ? .3 : 1;
+            var newColor = d.active ? "teal": "hotpink";
+
+            // Toggle circle color change
+            d3.select(this)
+                .style("opacity", newOpacity)
+                .style("stroke", newColor);
+
+            // Update the elements' active state
+            d.active = active;
+        });
+
+        // Creates line for each attribute
+        var g = svg.selectAll(".dimension")
+            .data(attributes)
+            .enter().append("g")
+            .attr("class", "attribute")
+
+            .attr("transform", function(d) { return "translate(" + x(d) + ")"; });
+
+        // Creates axes
+        g.append("g")
+            .attr("class", "axis")
+            .each(function(d) { return d3.select(this).call(axis.scale(y[d])); })
+            .append("text")
+            .attr("y", -9)
+            .text(function(d) { return labelNames[d]; })
+            .style("text-anchor", "middle");
+
+    });
+
+
+    function path(d) {
+        return line(attributes.map(function(p) { return [x(p), y[p](d[p])]; }));
+
+
+    }
+
+
+
+</script>
